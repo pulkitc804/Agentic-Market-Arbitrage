@@ -1,0 +1,9 @@
+# Pinned to latest versions as of setup (PyPI, May 2026).
+fastapi==0.136.1
+uvicorn==0.46.0
+pydantic==2.13.3
+pydantic-settings==2.14.0
+python-dotenv==1.2.2
+openai==2.33.0
+httpx==0.28.1
+beautifulsoup4==4.14.3
