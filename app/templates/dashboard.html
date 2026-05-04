@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin Dashboard — Blaze Gateway</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --success: #3fb950;
+      --card-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: radial-gradient(1200px 600px at 10% -10%, #1a2332 0%, var(--bg) 55%);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    header {
+      padding: 1.75rem 2rem 1rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(22, 27, 34, 0.85);
+      backdrop-filter: blur(8px);
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.35rem;
+      font-weight: 650;
+      letter-spacing: -0.02em;
+    }
+    header p {
+      margin: 0.35rem 0 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 1.75rem 2rem 3rem;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 2rem;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.35rem 1.5rem;
+      box-shadow: var(--card-shadow);
+    }
+    .card-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+    .card-value {
+      font-size: 1.85rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+    .card-sub {
+      margin-top: 0.5rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .badge-live {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--success);
+      background: rgba(63, 185, 80, 0.12);
+      border: 1px solid rgba(63, 185, 80, 0.35);
+      border-radius: 999px;
+      padding: 0.2rem 0.65rem;
+      margin-bottom: 0.65rem;
+    }
+    .badge-live::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.45; }
+    }
+    .logic-text {
+      font-size: 1rem;
+      color: var(--text);
+      font-weight: 500;
+    }
+    section.logs {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: var(--card-shadow);
+    }
+    section.logs h2 {
+      margin: 0;
+      padding: 1rem 1.25rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 0.75rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+    th {
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      background: rgba(13, 17, 23, 0.5);
+    }
+    tr:last-child td { border-bottom: none; }
+    td.url {
+      word-break: break-all;
+      color: var(--accent);
+      max-width: 420px;
+    }
+    td.status { color: var(--text); }
+    .empty {
+      padding: 1.5rem 1.25rem;
+      color: var(--muted);
+      text-align: center;
+    }
+    footer {
+      text-align: center;
+      padding: 1rem;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Admin Dashboard</h1>
+    <p>Live view of gateway activity — refresh to update.</p>
+  </header>
+  <main>
+    <div class="cards">
+      <div class="card">
+        <div class="card-label">Total Revenue</div>
+        <div class="card-value">{{ total_revenue }}</div>
+        <div class="card-sub">Accrues $0.01 per verified <code>payment-signature</code></div>
+      </div>
+      <div class="card">
+        <div class="card-label">Requests Processed</div>
+        <div class="card-value">{{ requests_processed }}</div>
+        <div class="card-sub">Successful scrapes (HTTP 200 + text extracted)</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Current Arbitrage Logic</div>
+        <div><span class="badge-live">Live</span></div>
+        <div class="logic-text">Mode: Mock LLM (Credits Saved)</div>
+      </div>
+    </div>
+
+    <section class="logs">
+      <h2>Recent Logs</h2>
+      {% if recent_logs %}
+      <table>
+        <thead>
+          <tr>
+            <th>URL</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in recent_logs %}
+          <tr>
+            <td class="url">{{ row.url }}</td>
+            <td class="status">{{ row.status }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="empty">No scrape attempts yet. Call <code>POST /v1/clean-data</code> to populate this table.</p>
+      {% endif %}
+    </section>
+  </main>
+  <footer>Blaze Scrape-to-Arbitrage · process-local metrics (reset on server restart)</footer>
+</body>
+</html>

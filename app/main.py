@@ -5,18 +5,49 @@ Run with uvicorn from the project root, e.g.:
     uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 """
 
+from __future__ import annotations
+
+from collections import deque
+from pathlib import Path
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from starlette.templating import Jinja2Templates
 
 from app.api.routes import router
 from app.core.config import settings
 
-# Paths that skip the x402 payment gate (public probes and API documentation).
-_X402_EXEMPT_PATHS: frozenset[str] = frozenset({"/health", "/docs", "/openapi.json"})
+# --- Admin dashboard metrics (process-local; reset on server restart) ---
+# Revenue: +$0.01 (one cent) each time ``payment-signature`` is accepted on a gated route.
+_revenue_cents: int = 0
+_successful_scrapes: int = 0
+_recent_scrape_logs: deque[dict[str, str]] = deque(maxlen=5)
+
+
+def record_payment_verified() -> None:
+    """Increment simulated revenue when a client presents a valid payment signature."""
+    global _revenue_cents
+    _revenue_cents += 1
+
+
+def record_scrape_result(*, url: str, status: str, success: bool) -> None:
+    """Push a row into the rolling log; bump the success counter only on completed scrapes."""
+    global _successful_scrapes
+    _recent_scrape_logs.appendleft({"url": url, "status": status})
+    if success:
+        _successful_scrapes += 1
+
+
+def get_dashboard_view_model() -> dict[str, object]:
+    """Template context for ``GET /dashboard``."""
+    return {
+        "total_revenue": f"${_revenue_cents / 100:.2f}",
+        "requests_processed": _successful_scrapes,
+        "recent_logs": list(_recent_scrape_logs),
+    }
+
 
 # --- FastAPI application instance ---
-# ``settings`` drives title and optional future behavior (debug banners, etc.).
 app = FastAPI(
     title=settings.app_name,
     description="High-performance API gateway skeleton for AI agents.",
@@ -25,48 +56,31 @@ app = FastAPI(
 )
 
 # --- CORS ---
-# Allowing all origins is intentional for early agent integration.
-# Tighten ``allow_origins`` to explicit domains before production traffic.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    # Browsers forbid credentials together with wildcard ``*`` origins.
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["PAYMENT-REQUIRED"],
 )
 
-# --- Routers ---
-# All HTTP routes (``/health``, ``/v1/clean-data``, …) live on ``router`` in ``routes.py``.
 app.include_router(router)
 
+_TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
+templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 
-@app.middleware("http")
-async def x402_payment_middleware(request: Request, call_next):
-    """
-    x402-style payment gate for agent traffic.
 
-    Unpaid requests receive HTTP 402 with dummy settlement metadata so callers
-    (for example autonomous agents) know which wallet and price to use. In a
-    full implementation you would verify the ``payment-signature`` payload here;
-    for now its presence is treated as proof of intent to pay.
-    """
-    path: str = request.url.path
-
-    # Public surface: liveness and OpenAPI/Swagger must stay reachable without a header.
-    if path in _X402_EXEMPT_PATHS:
-        return await call_next(request)
-
-    # Starlette header lookup is case-insensitive; we normalize to the canonical name.
-    payment_signature: str | None = request.headers.get("payment-signature")
-    if payment_signature is None or not payment_signature.strip():
-        return JSONResponse(
-            status_code=402,
-            content={
-                "error": "Payment required",
-                "x402_wallet_address": "0xFakeWalletAddress123",
-                "x402_price": "0.02 USDC",
-            },
-        )
-
-    return await call_next(request)
+@app.get("/dashboard", include_in_schema=False)
+def admin_dashboard(request: Request):
+    """HTML admin view for demos (not part of the public JSON API surface)."""
+    ctx = get_dashboard_view_model()
+    return templates.TemplateResponse(
+        request,
+        "dashboard.html",
+        {
+            "total_revenue": ctx["total_revenue"],
+            "requests_processed": ctx["requests_processed"],
+            "recent_logs": ctx["recent_logs"],
+        },
+    )
